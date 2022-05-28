@@ -1,0 +1,56 @@
+name: main
+
+on: push
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    name: OTP ${{ matrix.otp }} / Elixir ${{ matrix.elixir }}
+    strategy:
+      matrix:
+        otp: ["24.1.7", "24.2.2", "24.3.3"]
+        elixir: ["1.12.3", "1.13.4"]
+    env:
+      MIX_ENV: test
+      cache_version: v2
+    steps:
+      - uses: actions/checkout@v2
+        name: Checkout
+
+      - uses: actions/cache@v1
+        name: Cache deps
+        with:
+          path: deps
+          key: deps--${{ env.cache_version }}${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            deps-${{ env.cache_version }}-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}
+
+      - uses: actions/cache@v1
+        name: Cache _build
+        with:
+          path: _build
+          key: build-erlef-${{ env.cache_version }}-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}-${{ hashFiles('mix.lock') }}
+          restore-keys: |
+            build-erlef-${{ env.cache_version }}-${{ runner.os }}-${{ matrix.otp }}-${{ matrix.elixir }}
+
+      - uses: erlef/setup-elixir@v1
+        name: Setup elixir
+        with:
+          otp-version: ${{matrix.otp}}
+          elixir-version: ${{matrix.elixir}}
+
+      - run: mix deps.get
+
+      - name: Check that no unused deps exist
+        run: |
+          mix deps.clean --unused --unlock
+          git diff --exit-code
+
+      - run: mix format --check-formatted
+      - run: mix credo
+      - run: mix dialyzer
+      - run: mix compile
+      - run: mix test --trace --include skip
