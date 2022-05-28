@@ -3,16 +3,5 @@ defmodule BVM do
   Documentation for `BVM`.
   """
 
-  @doc """
-  Hello world.
-
-  ## Examples
-
-      iex> BVM.hello()
-      :world
-
-  """
-  def hello do
-    :world
-  end
+  defdelegate new(), to: BVM.VM
 end
