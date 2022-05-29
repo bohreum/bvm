@@ -3,6 +3,10 @@ defmodule BVM.VM do
   Virtual Machine
   """
 
+  alias BVM.VM.Add
+  alias BVM.VM.Halt
+  alias BVM.VM.Push
+
   def new do
     %{stack: []}
   end
@@ -11,47 +15,22 @@ defmodule BVM.VM do
     stack
   end
 
-  @push_ops_sizes [
-    8,
-    16,
-    24,
-    32,
-    40,
-    48,
-    56,
-    64,
-    72,
-    80,
-    88,
-    96,
-    104,
-    112,
-    120,
-    128,
-    136,
-    144,
-    152,
-    160,
-    168,
-    176,
-    184,
-    192,
-    200,
-    208,
-    216,
-    224,
-    232,
-    240,
-    248,
-    256
-  ]
+  def with_stack(vm, stack) do
+    Map.put(vm, :stack, stack)
+  end
 
-  for {size, ii} <- Enum.with_index(@push_ops_sizes) do
-    def unquote(String.to_atom("push#{ii + 1}"))(
-          <<val::size(unquote(size))-integer-unsigned-big, rest::bitstring>>,
-          %{stack: stack} = vm
-        ) do
-      {:ok, rest, %{vm | stack: [val | stack]}}
+  def run(data, vm) do
+    case step(data, vm) do
+      {:ok, data, vm} -> run(data, vm)
+      {:error, reason} -> {:error, reason}
+      :halt -> :ok
     end
+  end
+
+  def step(<<0x00, data::binary>>, vm), do: Halt.step(data, vm)
+  def step(<<0x01, data::binary>>, vm), do: Add.step(data, vm)
+
+  def step(<<op, data::binary>>, vm) when op >= 0x60 and op <= 0x7F do
+    Push.step(op, data, vm)
   end
 end
